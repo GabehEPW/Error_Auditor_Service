@@ -1,0 +1,15 @@
+.vscode/launch.json
+.vscode/
+!.vscode/extensions.json
+
+target/
+*.log
+
+.classpath
+.project
+.settings/
+
+.idea/
+*.iml
+
+.DS_Store

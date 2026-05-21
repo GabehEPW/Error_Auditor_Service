@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/error_auditor
+    username: postgres
+    password: postgres
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    properties:
+      "[hibernate.format_sql]": true
+  cloud:
+    aws:
+      credentials:
+        access-key: ${AWS_ACCESS_KEY_ID}
+        secret-key: ${AWS_SECRET_ACCESS_KEY}
+      region:
+        static: us-east-1
+
+app:
+  sqs:
+    dlq-name: ${APP_SQS_DLQ_NAME:T0XN_SEU_NOME-DLQ.fifo}
+    queue-name: ${APP_SQS_QUEUE_NAME:T0XN_SEU_NOME.fifo}
