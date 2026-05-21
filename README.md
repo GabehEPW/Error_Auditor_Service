@@ -1,49 +1,54 @@
-Implementando o Error Auditor Service (DLQ)
+# Servico Auditor de Falhas (DLQ)
 
-Objetivo
-Este servico consome mensagens da DLQ do SQS e persiste um registro de auditoria no banco de dados. O registro inclui o payload bruto, a fila de origem e a severidade calculada a partir da quantidade total de itens do pedido.
+## Objetivo
+Servico independente que consome mensagens da fila DLQ do SQS e persiste o registro de auditoria no banco de dados para analise posterior.
 
-Arquitetura escolhida: Layered Architecture
-Escolhi arquitetura em camadas porque este servico tem um fluxo simples, com regras de negocio claras e integracao com tecnologias externas (SQS e banco). A separacao entre camadas deixa explicito o que e regra de negocio e o que e adaptador de tecnologia, reduz o acoplamento e facilita testes.
+## Arquitetura escolhida e justificativa
+Escolhi uma arquitetura em camadas com adaptadores (inspirada em Ports and Adapters), separando responsabilidades para manter o servico pequeno, claro e facil de testar.
 
-Organizacao do projeto
-- domain: entidade e enums de negocio. Aqui ficam as regras e o modelo de auditoria (ErrorAuditRecord, ErrorStatus, Severity).
-- application: casos de uso/servicos de negocio. O ErrorAuditService concentra a regra de severidade e a criacao do registro.
-- infrastructure: adaptadores de tecnologia. O DlqListener integra com SQS e o repository integra com JPA.
+- **domain**: regras de negocio puras (entidades e enums). Nao depende de Spring nem de infraestrutura.
+- **application**: casos de uso e orquestracao da regra de negocio (triagem de severidade e persistencia).
+- **infrastructure**: adaptadores para tecnologias externas (SQS e JPA/H2), mantendo o dominio limpo.
 
-Justificativa detalhada
-- A regra de severidade e independente de SQS e banco. Por isso fica em application, protegendo o dominio de detalhes de infraestrutura.
-- O listener e apenas um adaptador: recebe a mensagem, captura o erro se existir no header e delega ao servico. Isso evita que logica de negocio fique dentro do adapter.
-- O JPA repository fica isolado para que o dominio nao dependa do framework.
-- Essa estrutura permite trocar SQS por outra fila ou JPA por outra persistencia com baixo impacto nas regras.
+Essa divisao evita acoplamento direto entre regra de negocio e tecnologia (SQS/DB), facilita manutencao, e deixa claro onde cada mudanca deve ser feita. Para um servico de apoio como este, que so consome fila e salva auditoria, essa organizacao reduz complexidade sem perder clareza.
 
-Contrato do registro salvo
-{
-	"errorId": "uuid-gerado-pelo-servico",
-	"queueName": "T0XN_seu_nome_original",
-	"payload": "{ ... conteudo bruto da mensagem ... }",
-	"timestamp": "2026-05-07T14:30:00Z",
-	"status": "PENDING_ANALYSIS",
-	"severity": "HIGH|MEDIUM|LOW"
-}
+## Requisitos atendidos
+- Escuta ativa da fila DLQ com `@SqsListener`.
+- Captura do erro associado a mensagem e persistencia no banco.
+- Mensagem removida da DLQ apenas apos salvar no banco (retorno bem sucedido do listener).
+- Regra de triagem de severidade:
+  - total > 100: HIGH
+  - total entre 50 e 100: MEDIUM
+  - total < 50: LOW
+- Registro persistido com os campos exigidos:
+  - `errorId`, `queueName`, `payload`, `timestamp`, `status`, `severity`.
 
-Regra de severidade
-- total de itens > 100: HIGH
-- total de itens entre 50 e 100 (inclusive): MEDIUM
-- total de itens < 50: LOW
+## Estrutura de pastas
+```
+src/main/java/br/com/gabrielwandscheer/errorauditorservice/
+  application/
+  domain/
+  infrastructure/
+```
 
-Configuracao
-- Banco: H2 em memoria (application.yml). Console em http://localhost:8080/h2 com JDBC URL jdbc:h2:mem:error_auditor.
-- AWS: use variaveis de ambiente para nao expor credenciais.
-	- AWS_ACCESS_KEY_ID
-	- AWS_SECRET_ACCESS_KEY
-	- APP_SQS_QUEUE_NAME (fila original)
-	- APP_SQS_DLQ_NAME (fila DLQ)
+## Configuracao
+Use variaveis de ambiente. **Nunca** coloque chaves reais no codigo ou no Git.
 
-Como executar
-1) Configure as variaveis de ambiente acima.
-2) Rode o projeto com Maven: mvn spring-boot:run
+Variaveis esperadas:
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_DEFAULT_REGION` (ex: us-east-1)
+- `APP_SQS_DLQ_NAME` (ex: T0XN_SEU_NOME-DLQ.fifo)
+- `APP_SQS_QUEUE_NAME` (ex: T0XN_SEU_NOME.fifo)
 
-Evidencias para entrega
-- Print do terminal mostrando o consumo da mensagem.
-- Print do banco mostrando o registro persistido.
+## Como executar
+1. Configure as variaveis de ambiente.
+2. Execute o projeto:
+   - `mvnw.cmd spring-boot:run`
+
+## Evidencias para entrega
+- Print do terminal recebendo a mensagem.
+- Print do banco (H2) com o registro persistido.
+
+## Observacoes de seguranca
+Se voce ja expos chaves AWS, **rotacione** imediatamente e remova de qualquer arquivo.

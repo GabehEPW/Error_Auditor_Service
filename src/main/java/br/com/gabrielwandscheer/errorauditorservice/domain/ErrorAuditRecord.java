@@ -35,6 +35,10 @@ public class ErrorAuditRecord {
     @Column(name = "severity", nullable = false)
     private Severity severity;
 
+    @Lob
+    @Column(name = "error_details")
+    private String errorDetails;
+
     public String getErrorId() {
         return errorId;
     }
@@ -81,5 +85,13 @@ public class ErrorAuditRecord {
 
     public void setSeverity(Severity severity) {
         this.severity = severity;
+    }
+
+    public String getErrorDetails() {
+        return errorDetails;
+    }
+
+    public void setErrorDetails(String errorDetails) {
+        this.errorDetails = errorDetails;
     }
 }

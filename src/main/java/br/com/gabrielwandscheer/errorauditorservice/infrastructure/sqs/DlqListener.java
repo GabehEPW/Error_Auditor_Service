@@ -26,10 +26,12 @@ public class DlqListener {
     @SqsListener("${app.sqs.dlq-name}")
     public void onMessage(String payload, @Headers Map<String, Object> headers) {
         Object error = headers.get("error");
+        String errorDetails = null;
         if (error != null) {
             logger.warn("DLQ message contains error header: {}", error);
+            errorDetails = String.valueOf(error);
         }
-        service.saveFromDlq(payload, queueName);
+        service.saveFromDlq(payload, queueName, errorDetails);
         logger.info("DLQ message persisted successfully");
     }
 }

@@ -26,7 +26,7 @@ public class ErrorAuditService {
     }
 
     @Transactional
-    public ErrorAuditRecord saveFromDlq(String payload, String queueName) {
+    public ErrorAuditRecord saveFromDlq(String payload, String queueName, String errorDetails) {
         OrderEventDto event = parsePayload(payload);
         int totalAmount = sumAmounts(event.getOrderItems());
         Severity severity = evaluateSeverity(totalAmount);
@@ -38,6 +38,7 @@ public class ErrorAuditService {
         record.setTimestamp(Instant.now());
         record.setStatus(ErrorStatus.PENDING_ANALYSIS);
         record.setSeverity(severity);
+        record.setErrorDetails(errorDetails);
 
         return repository.save(record);
     }
