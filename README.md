@@ -1,50 +1,19 @@
-Implementando o Error Auditor Service (DLQ)
+## Arquitetura escolhida e justificativa
 
-Objetivo
-Este servico consome mensagens da DLQ do SQS e persiste um registro de auditoria no banco de dados. O registro inclui o payload bruto, a fila de origem e a severidade calculada a partir da quantidade total de itens do pedido.
+Escolhi **Layered Architecture (Arquitetura em Camadas)** porque este servico e pequeno, tem fluxo linear e regras de negocio claras, mas ainda assim integra com tecnologias externas (SQS e banco). Esse modelo deixa as responsabilidades bem separadas, reduz acoplamento e facilita manutencao e testes. Como o servico e de apoio (auditoria) e nao tem UI nem fluxos complexos, uma arquitetura mais simples e direta atende melhor que opcoes mais pesadas.
 
-Arquitetura escolhida: Layered Architecture
-Escolhi arquitetura em camadas porque este servico tem um fluxo simples, com regras de negocio claras e integracao com tecnologias externas (SQS e banco). A separacao entre camadas deixa explicito o que e regra de negocio e o que e adaptador de tecnologia, reduz o acoplamento e facilita testes.
+### Por que essa arquitetura faz sentido aqui
+- **Regra de negocio isolada:** a triagem de severidade e logica do dominio e nao deve depender de SQS ou JPA. Assim ela fica em uma camada de aplicacao/servico, preservando independencia.
+- **Adaptadores separados:** o listener da SQS so recebe a mensagem, registra o erro e delega ao caso de uso. Isso evita que a regra de negocio fique misturada com detalhes de mensageria.
+- **Persistencia desacoplada:** a camada de infraestrutura concentra o repository JPA. Se futuramente eu trocar Postgres por outro banco ou outro ORM, a regra de negocio continua intacta.
+- **Teste mais simples:** fica facil testar a regra de severidade sem precisar subir fila ou banco, pois ela esta isolada.
 
-Organizacao do projeto
-- domain: entidade e enums de negocio. Aqui ficam as regras e o modelo de auditoria (ErrorAuditRecord, ErrorStatus, Severity).
-- application: casos de uso/servicos de negocio. O ErrorAuditService concentra a regra de severidade e a criacao do registro.
-- infrastructure: adaptadores de tecnologia. O DlqListener integra com SQS e o repository integra com JPA.
+### Organizacao das pastas
+- **domain**: modelo central da auditoria (entidade e enums). Representa o “contrato” do registro de erro.
+- **application**: casos de uso e regras (criacao do registro e calculo de severidade).
+- **infrastructure**: adaptadores de tecnologia (SQS listener e repository).
 
-Justificativa detalhada
-- A regra de severidade e independente de SQS e banco. Por isso fica em application, protegendo o dominio de detalhes de infraestrutura.
-- O listener e apenas um adaptador: recebe a mensagem, captura o erro se existir no header e delega ao servico. Isso evita que logica de negocio fique dentro do adapter.
-- O JPA repository fica isolado para que o dominio nao dependa do framework.
-- Essa estrutura permite trocar SQS por outra fila ou JPA por outra persistencia com baixo impacto nas regras.
-
-Contrato do registro salvo
-{
-	"errorId": "uuid-gerado-pelo-servico",
-	"queueName": "T0XN_seu_nome_original",
-	"payload": "{ ... conteudo bruto da mensagem ... }",
-	"timestamp": "2026-05-07T14:30:00Z",
-	"status": "PENDING_ANALYSIS",
-	"severity": "HIGH|MEDIUM|LOW"
-}
-
-Regra de severidade
-- total de itens > 100: HIGH
-- total de itens entre 50 e 100 (inclusive): MEDIUM
-- total de itens < 50: LOW
-
-Configuracao
-- Banco: Postgres local (application.yml). Ajuste url/usuario/senha conforme seu ambiente.
-- AWS: use variaveis de ambiente para nao expor credenciais.
-	- AWS_ACCESS_KEY_ID
-	- AWS_SECRET_ACCESS_KEY
-	- APP_SQS_QUEUE_NAME (fila original)
-	- APP_SQS_DLQ_NAME (fila DLQ)
-
-Como executar
-1) Suba o banco e garanta que o schema possa ser criado.
-2) Configure as variaveis de ambiente acima.
-3) Rode o projeto com Maven: mvn spring-boot:run
-
-Evidencias para entrega
-- Print do terminal mostrando o consumo da mensagem.
-- Print do banco mostrando o registro persistido.
+### Beneficios práticos desta escolha
+- **Manutencao facil:** alteracoes no listener ou no banco nao afetam a regra de negocio.
+- **Evolucao segura:** novas fontes de erro (ex: Kafka) podem ser adicionadas como outro adaptador.
+- **Clareza de responsabilidade:** cada camada tem um papel unico e bem definido.
