@@ -33,7 +33,7 @@ Regra de severidade
 - total de itens < 50: LOW
 
 Configuracao
-- Banco: Postgres local (application.yml). Ajuste url/usuario/senha conforme seu ambiente.
+- Banco: H2 em memoria (application.yml). Console em http://localhost:8080/h2 com JDBC URL jdbc:h2:mem:error_auditor.
 - AWS: use variaveis de ambiente para nao expor credenciais.
 	- AWS_ACCESS_KEY_ID
 	- AWS_SECRET_ACCESS_KEY
@@ -41,9 +41,8 @@ Configuracao
 	- APP_SQS_DLQ_NAME (fila DLQ)
 
 Como executar
-1) Suba o banco e garanta que o schema possa ser criado.
-2) Configure as variaveis de ambiente acima.
-3) Rode o projeto com Maven: mvn spring-boot:run
+1) Configure as variaveis de ambiente acima.
+2) Rode o projeto com Maven: mvn spring-boot:run
 
 Evidencias para entrega
 - Print do terminal mostrando o consumo da mensagem.
