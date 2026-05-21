@@ -1,85 +1,40 @@
 package br.com.gabrielwandscheer.errorauditorservice.domain;
 
-import jakarta.persistence.Column;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
-import java.time.Instant;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
-@Table(name = "error_audit_records")
+@Table(name = "error_audit")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class ErrorAuditRecord {
-
     @Id
-    @Column(name = "error_id", nullable = false, updatable = false)
-    private String errorId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID errorId;
 
-    @Column(name = "queue_name", nullable = false)
     private String queueName;
 
-    @Lob
-    @Column(name = "payload", nullable = false)
     private String payload;
 
-    @Column(name = "timestamp", nullable = false)
-    private Instant timestamp;
+    private OffsetDateTime timestamp;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
     private ErrorStatus status;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "severity", nullable = false)
     private Severity severity;
-
-    public String getErrorId() {
-        return errorId;
-    }
-
-    public void setErrorId(String errorId) {
-        this.errorId = errorId;
-    }
-
-    public String getQueueName() {
-        return queueName;
-    }
-
-    public void setQueueName(String queueName) {
-        this.queueName = queueName;
-    }
-
-    public String getPayload() {
-        return payload;
-    }
-
-    public void setPayload(String payload) {
-        this.payload = payload;
-    }
-
-    public Instant getTimestamp() {
-        return timestamp;
-    }
-
-    public void setTimestamp(Instant timestamp) {
-        this.timestamp = timestamp;
-    }
-
-    public ErrorStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(ErrorStatus status) {
-        this.status = status;
-    }
-
-    public Severity getSeverity() {
-        return severity;
-    }
-
-    public void setSeverity(Severity severity) {
-        this.severity = severity;
-    }
 }

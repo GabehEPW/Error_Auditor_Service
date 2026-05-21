@@ -1,49 +1,33 @@
-Implementando o Error Auditor Service (DLQ)
+# Serviço Auditor de Falhas (DLQ)
 
-Objetivo
-Este servico consome mensagens da DLQ do SQS e persiste um registro de auditoria no banco de dados. O registro inclui o payload bruto, a fila de origem e a severidade calculada a partir da quantidade total de itens do pedido.
+Este serviço é responsável por consumir mensagens de uma Dead Letter Queue (DLQ) do Amazon SQS, auditar os erros e persistir os detalhes em um banco de dados para análise posterior.
 
-Arquitetura escolhida: Layered Architecture
-Escolhi arquitetura em camadas porque este servico tem um fluxo simples, com regras de negocio claras e integracao com tecnologias externas (SQS e banco). A separacao entre camadas deixa explicito o que e regra de negocio e o que e adaptador de tecnologia, reduz o acoplamento e facilita testes.
+## Justificativa da Arquitetura
 
-Organizacao do projeto
-- domain: entidade e enums de negocio. Aqui ficam as regras e o modelo de auditoria (ErrorAuditRecord, ErrorStatus, Severity).
-- application: casos de uso/servicos de negocio. O ErrorAuditService concentra a regra de severidade e a criacao do registro.
-- infrastructure: adaptadores de tecnologia. O DlqListener integra com SQS e o repository integra com JPA.
+Para este serviço, foi escolhida uma **Arquitetura em Camadas (Layered Architecture)**, uma abordagem clássica e eficaz para a maioria das aplicações de back-end, especialmente para serviços com um escopo bem definido como este.
 
-Justificativa detalhada
-- A regra de severidade e independente de SQS e banco. Por isso fica em application, protegendo o dominio de detalhes de infraestrutura.
-- O listener e apenas um adaptador: recebe a mensagem, captura o erro se existir no header e delega ao servico. Isso evita que logica de negocio fique dentro do adapter.
-- O JPA repository fica isolado para que o dominio nao dependa do framework.
-- Essa estrutura permite trocar SQS por outra fila ou JPA por outra persistencia com baixo impacto nas regras.
+A estrutura do projeto foi organizada da seguinte forma:
 
-Contrato do registro salvo
-{
-	"errorId": "uuid-gerado-pelo-servico",
-	"queueName": "T0XN_seu_nome_original",
-	"payload": "{ ... conteudo bruto da mensagem ... }",
-	"timestamp": "2026-05-07T14:30:00Z",
-	"status": "PENDING_ANALYSIS",
-	"severity": "HIGH|MEDIUM|LOW"
-}
+- **`application`**: Esta camada contém a lógica de aplicação e os casos de uso do sistema.
+    - **`dto`**: Contém os Data Transfer Objects (DTOs), que são usados para transportar dados entre as camadas, especialmente para desserializar as mensagens da fila.
+    - **`ErrorAuditService`**: É o coração da lógica de aplicação. Ele orquestra o processo de auditoria: recebe o payload da mensagem, aplica as regras de negócio para determinar a severidade do erro e coordena a persistência dos dados.
 
-Regra de severidade
-- total de itens > 100: HIGH
-- total de itens entre 50 e 100 (inclusive): MEDIUM
-- total de itens < 50: LOW
+- **`domain`**: A camada de domínio representa as regras de negócio e as entidades principais do sistema.
+    - **`ErrorAuditRecord`**: A entidade que modela o registro de auditoria de erro que será salvo no banco de dados.
+    - **`ErrorStatus`** e **`Severity`**: Enums que representam estados e classificações importantes para o domínio do problema.
 
-Configuracao
-- Banco: H2 em memoria (application.yml). Console em http://localhost:8080/h2 com JDBC URL jdbc:h2:mem:error_auditor.
-- AWS: use variaveis de ambiente para nao expor credenciais.
-	- AWS_ACCESS_KEY_ID
-	- AWS_SECRET_ACCESS_KEY
-	- APP_SQS_QUEUE_NAME (fila original)
-	- APP_SQS_DLQ_NAME (fila DLQ)
+- **`infrastructure`**: Esta camada é responsável pelos detalhes técnicos de implementação, como a comunicação com sistemas externos (banco de dados, filas).
+    - **`persistence`**: Contém o `ErrorAuditRepository`, uma interface do Spring Data JPA que abstrai o acesso ao banco de dados.
+    - **`sqs`**: Contém o `DlqListener`, o componente que escuta a fila SQS e atua como ponto de entrada para o serviço.
 
-Como executar
-1) Configure as variaveis de ambiente acima.
-2) Rode o projeto com Maven: mvn spring-boot:run
+### Por que a Arquitetura em Camadas?
 
-Evidencias para entrega
-- Print do terminal mostrando o consumo da mensagem.
-- Print do banco mostrando o registro persistido.
+1.  **Simplicidade e Clareza**: Para um serviço de "apoio" como este, cuja principal responsabilidade é consumir, processar e persistir dados, a arquitetura em camadas oferece uma estrutura clara e fácil de entender. As responsabilidades de cada camada são bem definidas, o que facilita a manutenção e a evolução do código.
+
+2.  **Separação de Responsabilidades (SoC)**: A divisão em camadas (aplicação, domínio, infraestrutura) garante uma boa separação de responsabilidades. A lógica de negócio (`domain` e `application`) não se mistura com os detalhes de infraestrutura (`infrastructure`). Por exemplo, o `ErrorAuditService` não sabe como as mensagens são recebidas (SQS) ou como os dados são persistidos (JPA/H2), ele apenas delega essas tarefas para as implementações na camada de infraestrutura.
+
+3.  **Testabilidade**: A separação de responsabilidades facilita a escrita de testes unitários e de integração. É possível testar a lógica de negócio no `ErrorAuditService` de forma isolada, "mockando" o repositório e outras dependências externas.
+
+4.  **Flexibilidade e Manutenibilidade**: Embora a Arquitetura Hexagonal pudesse ser uma alternativa, para a escala e complexidade deste serviço, ela poderia ser um exagero. A arquitetura em camadas já nos dá uma boa flexibilidade. Se no futuro precisarmos mudar o banco de dados de H2 para Postgres, ou a fila de SQS para RabbitMQ, as alterações ficariam contidas na camada de `infrastructure`, com impacto mínimo ou nulo nas camadas de `application` e `domain`.
+
+Em resumo, a Arquitetura em Camadas foi escolhida por ser uma solução pragmática que equilibra simplicidade, organização e boas práticas de design de software, sendo perfeitamente adequada para a natureza e os requisitos deste serviço de auditoria de falhas.

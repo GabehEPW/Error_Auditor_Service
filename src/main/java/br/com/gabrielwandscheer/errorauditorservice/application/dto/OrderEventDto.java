@@ -1,53 +1,24 @@
 package br.com.gabrielwandscheer.errorauditorservice.application.dto;
 
-import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.List;
 
-public class OrderEventDto {
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class OrderEventDto {
     private String zipCode;
-    private Integer customerId;
+    private Long customerId;
     private List<OrderItemDto> orderItems;
     private String origin;
-    private Instant occurredAt;
-
-    public String getZipCode() {
-        return zipCode;
-    }
-
-    public void setZipCode(String zipCode) {
-        this.zipCode = zipCode;
-    }
-
-    public Integer getCustomerId() {
-        return customerId;
-    }
-
-    public void setCustomerId(Integer customerId) {
-        this.customerId = customerId;
-    }
-
-    public List<OrderItemDto> getOrderItems() {
-        return orderItems;
-    }
-
-    public void setOrderItems(List<OrderItemDto> orderItems) {
-        this.orderItems = orderItems;
-    }
-
-    public String getOrigin() {
-        return origin;
-    }
-
-    public void setOrigin(String origin) {
-        this.origin = origin;
-    }
-
-    public Instant getOccurredAt() {
-        return occurredAt;
-    }
-
-    public void setOccurredAt(Instant occurredAt) {
-        this.occurredAt = occurredAt;
-    }
+    private OffsetDateTime occurredAt;
 }
